@@ -1,0 +1,5 @@
+# Python dependencies for food-tracker
+# Install: pip install -r requirements.txt
+
+# No external dependencies - uses stdlib only
+# sqlite3, json, datetime, re - all built-in

@@ -1,0 +1,2525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🔥 FUEL - Nutrition Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0b;
+      --card: #151518;
+      --border: #27272a;
+      --text: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-dim: #71717a;
+
+      --accent: #22c55e;
+      --protein: #6366f1;
+      --carbs: #f59e0b;
+      --fat: #22c55e;
+      --fiber: #a855f7;
+      --sugar: #ec4899;
+
+      --phase-relax: #f472b6;
+      --phase-fasting: #fbbf24;
+      --phase-keto: #4ade80;
+      --phase-gradual: #60a5fa;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      min-height: 36px;
+      min-width: 36px;
+    }
+
+    input[type="date"] {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-family: inherit;
+    }
+
+    /* ========== CARB CYCLE CARD ========== */
+    .cycle-card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 16px 16px 12px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Background emoji - top right, stays in header only */
+    .cycle-bg {
+      position: absolute;
+      top: -5px;
+      right: 5px;
+      font-size: 3rem;
+      opacity: 0.2;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header row */
+    .cycle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .phase-info h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .phase-info h2 .emoji {
+      font-size: 1.1rem;
+    }
+
+    .cycle-card.buffer .phase-info h2 { color: var(--phase-relax); }  /* pink */
+    .cycle-card.prefast .phase-info h2 { color: #a78bfa; }  /* purple */
+    .cycle-card.fasting .phase-info h2 { color: #ffffff; }  /* white */
+    .cycle-card.keto .phase-info h2 { color: var(--phase-keto); }  /* green */
+    .cycle-card.intro .phase-info h2 { color: var(--fiber); }  /* purple (fiber color) */
+    .cycle-card.refuel .phase-info h2 { color: #fbbf24; }  /* yellow */
+
+    .phase-info p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .day-badge {
+      text-align: right;
+    }
+
+    .day-badge .num {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .day-badge .label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    /* Chart macro toggle */
+    .chart-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .chart-macro-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-dim);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-macro-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .chart-macro-btn.active {
+      background: rgba(245,158,11,0.2);
+      border-color: var(--carbs);
+      color: var(--carbs);
+    }
+    .chart-macro-btn.active[data-macro="protein"] {
+      background: rgba(99,102,241,0.2);
+      border-color: var(--protein);
+      color: var(--protein);
+    }
+    .chart-macro-btn.active[data-macro="fat"] {
+      background: rgba(34,197,94,0.2);
+      border-color: var(--fat);
+      color: var(--fat);
+    }
+    .chart-macro-btn.active[data-macro="calories"] {
+      background: rgba(239,68,68,0.2);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
+    /* Chart container */
+    .chart-wrap {
+      position: relative;
+      height: 150px;
+      margin: 12px 0 0;
+      z-index: 2;
+    }
+
+    /* Day beads */
+    .day-beads {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0 0 0;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+
+    .bead {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #333;
+      flex-shrink: 0;
+    }
+
+    .bead.buffer { background: var(--phase-relax); }  /* pink */
+    .bead.prefast { background: #a78bfa; }  /* purple */
+    .bead.fasting { background: #ffffff; }  /* white */
+    .bead.keto { background: var(--phase-keto); }  /* green */
+    .bead.intro { background: var(--fiber); }  /* purple (fiber color) */
+    .bead.refuel { background: #fbbf24; }  /* yellow */
+
+    .bead.today {
+      width: 16px;
+      height: 16px;
+      margin: -4px -2px;
+      border: 2px solid var(--carbs);
+      background: transparent;
+      box-shadow: 0 0 8px var(--carbs);
+    }
+
+    .bead.past {
+      opacity: 0.4;
+    }
+
+    /* Day labels */
+    .day-labels {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0 0 0;
+      box-sizing: border-box;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      position: relative;
+      z-index: 1;
+    }
+
+    .day-labels span {
+      width: 20px;
+      text-align: center;
+    }
+
+    .day-labels span.today {
+      color: var(--carbs);
+      font-weight: 700;
+    }
+
+    /* ========== NUTRITION TABS ========== */
+    .nutrition-tabs {
+      display: flex;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 12px;
+      gap: 4px;
+    }
+
+    .nutrition-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nutrition-tab:hover {
+      color: var(--text);
+    }
+
+    .nutrition-tab.active {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .nutrition-panel {
+      display: none;
+    }
+
+    .nutrition-panel.active {
+      display: block;
+    }
+
+    /* ========== MICROS GRID ========== */
+    .micros-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .micro-item {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .micro-item .micro-icon {
+      font-size: 1.2rem;
+      margin-bottom: 2px;
+    }
+
+    .micro-item .micro-val {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .micro-item .micro-unit {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    .micro-item .micro-lbl {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .micro-item .micro-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .micro-item .micro-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .micro-item.good .micro-bar-fill { background: var(--accent); }
+    .micro-item.warning .micro-bar-fill { background: #f59e0b; }
+    .micro-item.low .micro-bar-fill { background: #ef4444; }
+
+    /* ========== AMINOS GRID ========== */
+    .aminos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .amino-item {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .amino-item .amino-icon {
+      font-size: 1.2rem;
+      margin-bottom: 2px;
+    }
+
+    .amino-item .amino-val {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .amino-item .amino-unit {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+    }
+
+    .amino-item .amino-lbl {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .amino-item .amino-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .amino-item .amino-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    .amino-item.good .amino-bar-fill { background: #06b6d4; }
+    .amino-item.warning .amino-bar-fill { background: #f59e0b; }
+    .amino-item.low .amino-bar-fill { background: #ef4444; }
+
+    /* ========== MACROS ROW ========== */
+    .macros-row {
+      display: flex;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 14px 6px;
+      margin-bottom: 12px;
+      gap: 2px;
+    }
+
+    .macro {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .macro-ring {
+      position: relative;
+      width: 52px;
+      height: 52px;
+    }
+
+    .macro-ring svg {
+      transform: rotate(-90deg);
+      width: 52px;
+      height: 52px;
+    }
+
+    .macro-ring .bg {
+      fill: none;
+      stroke: #2a2a2e;
+      stroke-width: 4;
+    }
+
+    .macro-ring .progress {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease, stroke-width 0.3s ease;
+    }
+
+    .macro-ring .progress.over {
+      stroke-width: 5;
+    }
+
+    .macro-ring .overflow {
+      fill: none;
+      stroke-width: 5;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease;
+      /* Drop shadow around the overflow arc for depth */
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    }
+
+    /* Brighter overflow colors */
+    .macro.calories .overflow { stroke: #ff8a8a; }
+    .macro.protein .overflow { stroke: #a5b4fc; }
+    .macro.carbs .overflow { stroke: #fcd34d; }
+    .macro.fat .overflow { stroke: #86efac; }
+    .macro.fiber .overflow { stroke: #d8b4fe; }
+    .macro.sugar .overflow { stroke: #f9a8d4; }
+
+    /* End cap - bright glowing dot at the tip with strong shadow */
+    .macro-ring .end-cap {
+      filter: drop-shadow(-2px 2px 4px rgba(0,0,0,0.9)) drop-shadow(0 0 3px currentColor);
+    }
+
+    .macro.calories .end-cap { fill: #ffc0c0; }
+    .macro.protein .end-cap { fill: #c7d2fe; }
+    .macro.carbs .end-cap { fill: #fde68a; }
+    .macro.fat .end-cap { fill: #bbf7d0; }
+    .macro.fiber .end-cap { fill: #e9d5ff; }
+    .macro.sugar .end-cap { fill: #fbcfe8; }
+
+    .cycle-indicator {
+      position: absolute;
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--text);
+      opacity: 0.9;
+      text-shadow: 0 0 4px rgba(0,0,0,0.8);
+    }
+
+    .macro.calories .progress { stroke: #ef4444; }
+    .macro.protein .progress { stroke: var(--protein); }
+    .macro.carbs .progress { stroke: var(--carbs); }
+    .macro.fat .progress { stroke: var(--fat); }
+    .macro.fiber .progress { stroke: var(--fiber); }
+    .macro.sugar .progress { stroke: var(--sugar); }
+
+    /* Selected macro highlight ring */
+    .macro.selected .macro-ring::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .macro.calories.selected .macro-ring::after { border-color: #ef4444; }
+    .macro.protein.selected .macro-ring::after { border-color: var(--protein); }
+    .macro.carbs.selected .macro-ring::after { border-color: var(--carbs); }
+    .macro.fat.selected .macro-ring::after { border-color: var(--fat); }
+    .macro.fiber.selected .macro-ring::after { border-color: var(--fiber); }
+    .macro.sugar.selected .macro-ring::after { border-color: var(--sugar); }
+    
+    .macro { cursor: pointer; transition: transform 0.15s; }
+    .macro:active { transform: scale(0.95); }
+
+    .macro-inner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .macro-inner .val {
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .macro.calories .val { color: #ef4444; }
+    .macro.protein .val { color: var(--protein); }
+    .macro.carbs .val { color: var(--carbs); }
+    .macro.fat .val { color: var(--fat); }
+    .macro.fiber .val { color: var(--fiber); }
+    .macro.sugar .val { color: var(--sugar); }
+
+    .macro-inner .icon {
+      font-size: 0.6rem;
+      margin-top: 1px;
+    }
+
+    .macro .lbl {
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .macro .target {
+      font-size: 0.5rem;
+      color: var(--text-dim);
+      opacity: 0.6;
+      margin-top: 1px;
+    }
+
+    /* ========== MEALS ========== */
+    .meals-card {
+      background: var(--card);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .meals-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .meals-header h3 { font-size: 0.9rem; font-weight: 600; }
+    .meals-header span { font-size: 0.75rem; color: var(--text-dim); }
+
+    .meal {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meal:last-child { border-bottom: none; }
+
+    .meal-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .meal-type { font-weight: 600; text-transform: capitalize; font-size: 0.9rem; }
+    .meal-time { font-size: 0.75rem; color: var(--text-dim); }
+    .meal-title { font-weight: 500; font-size: 0.95rem; margin: 0.25rem 0; color: var(--text); }
+
+    .meal-items {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .meal-macros {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+    .meal-macros .m-cal { color: #999; }
+    .meal-macros .m-protein { color: var(--protein); }
+    .meal-macros .m-carbs { color: var(--carbs); }
+    .meal-macros .m-fat { color: var(--fat); }
+    .meal-macros .m-fiber { color: var(--fiber); }
+    .meal-macros .m-sugar { color: var(--sugar); }
+
+    .no-meals {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+
+    /* Confidence badges */
+    .confidence-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .confidence-badge .conf-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .confidence-badge.conf-high {
+      background: rgba(34,197,94,0.15);
+      color: #4ade80;
+    }
+    .confidence-badge.conf-high .conf-dot { background: #4ade80; }
+    .confidence-badge.conf-mid {
+      background: rgba(245,158,11,0.15);
+      color: #fbbf24;
+    }
+    .confidence-badge.conf-mid .conf-dot { background: #fbbf24; }
+    .confidence-badge.conf-low {
+      background: rgba(239,68,68,0.15);
+      color: #f87171;
+    }
+    .confidence-badge.conf-low .conf-dot { background: #f87171; }
+
+    .daily-confidence {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .daily-confidence .conf-score {
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    /* Confidence detail popover */
+    .conf-detail {
+      display: none;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 6px;
+      font-size: 0.75rem;
+    }
+    .conf-detail.visible { display: block; }
+    .conf-detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      color: var(--text-secondary);
+    }
+    .conf-detail-item .conf-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+    .conf-detail-item .conf-item-val {
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .conf-detail-item.conf-item-low .conf-item-val { color: #f87171; }
+    .conf-detail-item.conf-item-mid .conf-item-val { color: #fbbf24; }
+    .conf-detail-item.conf-item-high .conf-item-val { color: #4ade80; }
+
+    /* ========== MODAL ========== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.3s;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    .modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      max-width: 100%;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 16px;
+      box-sizing: border-box;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+    
+    .form-group input[type="date"] {
+      min-width: 0;
+      -webkit-appearance: auto;
+      -moz-appearance: auto;
+      appearance: auto;
+    }
+
+    .form-group input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8);
+      cursor: pointer;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-actions .btn { flex: 1; padding: 14px; }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* Settings sections */
+    .settings-section {
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .settings-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .toggle-row .toggle-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      flex: 1;
+    }
+    .toggle-row .toggle-sublabel {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 24px;
+      transition: 0.2s;
+    }
+    .toggle-slider:before {
+      content: "";
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+      background: white;
+    }
+    .info-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--text-dim);
+      background: none;
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: 0.2s;
+    }
+    .info-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Info popup */
+    .info-popup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .info-popup.active { display: flex; }
+    .info-popup-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .info-popup-content h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .info-popup-content p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .info-popup-content .phase-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin: 12px 0;
+    }
+    .info-popup-content .phase-item {
+      font-size: 0.75rem;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text-secondary);
+    }
+    .info-popup-content .phase-item span {
+      margin-right: 4px;
+    }
+    .info-popup-close {
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    /* Disabled mode toggles */
+    .mode-placeholder {
+      opacity: 0.55;
+    }
+    .mode-placeholder .toggle-switch {
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .mode-placeholder .toggle-slider {
+      cursor: not-allowed;
+    }
+    .mode-agent-hint {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    /* Mode chips */
+    .mode-chip {
+      font-size: 0.72rem;
+      padding: 5px 10px;
+      border-radius: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .mode-chip:hover {
+      border-color: var(--accent);
+      color: var(--text-secondary);
+    }
+
+    /* Cycle settings collapsible */
+    .cycle-settings-body {
+      transition: max-height 0.3s ease, opacity 0.2s ease;
+      overflow: hidden;
+    }
+    .cycle-settings-body.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      background: var(--border);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Onboarding / Empty State */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🔥 FUEL</div>
+      <div class="date-nav">
+        <button class="btn" id="prev-day">←</button>
+        <input type="date" id="date-picker">
+        <button class="btn" id="next-day">→</button>
+        <button class="btn" id="settings-btn">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Carb Cycle Card -->
+    <div class="cycle-card gradual" id="cycle-card">
+      <div class="cycle-bg" id="cycle-bg">🫐</div>
+
+      <div class="cycle-header">
+        <div class="phase-info">
+          <h2><span id="phase-name">Gradual Build</span> <span class="emoji" id="phase-emoji">🫐</span></h2>
+          <p id="phase-tagline">Slowly increasing carbs</p>
+        </div>
+        <div class="day-badge">
+          <div class="num" id="day-num">20</div>
+          <div class="label">day of <span id="cycle-len">28</span></div>
+        </div>
+      </div>
+
+      <!-- Chart toggle now controlled by macro circles below -->
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="day-beads" id="beads"></div>
+      <div class="day-labels" id="labels"></div>
+    </div>
+
+    <!-- Nutrition Tabs -->
+    <div class="nutrition-tabs">
+      <button class="nutrition-tab active" data-panel="macros">Macros</button>
+      <button class="nutrition-tab" data-panel="micros">Micros</button>
+      <button class="nutrition-tab" data-panel="aminos">Aminos</button>
+    </div>
+
+    <!-- Macros Panel -->
+    <div class="nutrition-panel active" id="panel-macros">
+    <div class="macros-row">
+      <div class="macro calories" data-macro="calories">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-calories" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-calories" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-calories" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-calories"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-calories">0</div>
+            <div class="icon">🔥</div>
+          </div>
+        </div>
+        <div class="lbl">Cals</div>
+        <div class="target" id="t-calories"></div>
+      </div>
+      <div class="macro protein" data-macro="protein">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-protein" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-protein" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-protein" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-protein"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-protein">0</div>
+            <div class="icon">💪</div>
+          </div>
+        </div>
+        <div class="lbl">Protein</div>
+        <div class="target" id="t-protein"></div>
+      </div>
+      <div class="macro fat" data-macro="fat">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-fat" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-fat" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-fat" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-fat"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-fat">0</div>
+            <div class="icon">🥑</div>
+          </div>
+        </div>
+        <div class="lbl">Fat</div>
+        <div class="target" id="t-fat"></div>
+      </div>
+      <div class="macro carbs selected" data-macro="carbs">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-carbs" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-carbs" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-carbs" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-carbs"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-carbs">0</div>
+            <div class="icon">🍞</div>
+          </div>
+        </div>
+        <div class="lbl">Carbs</div>
+        <div class="target" id="t-carbs"></div>
+      </div>
+      <div class="macro fiber" data-macro="fiber">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-fiber" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-fiber" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-fiber" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-fiber"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-fiber">0</div>
+            <div class="icon">🥬</div>
+          </div>
+        </div>
+        <div class="lbl">Fiber</div>
+        <div class="target" id="t-fiber"></div>
+      </div>
+      <div class="macro sugar" data-macro="sugar">
+        <div class="macro-ring">
+          <svg viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="progress" id="ring-sugar" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="overflow" id="overflow-sugar" cx="26" cy="26" r="22" stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+            <circle class="end-cap" id="cap-sugar" cx="26" cy="4" r="2.5" style="display:none"/>
+          </svg>
+          <span class="cycle-indicator" id="cycle-sugar"></span>
+          <div class="macro-inner">
+            <div class="val" id="m-sugar">0</div>
+            <div class="icon">🍬</div>
+          </div>
+        </div>
+        <div class="lbl">Sugar</div>
+        <div class="target" id="t-sugar"></div>
+      </div>
+    </div>
+    </div><!-- end panel-macros -->
+
+    <!-- Micros Panel -->
+    <div class="nutrition-panel" id="panel-micros">
+      <div class="micros-grid">
+        <div class="micro-item" id="micro-sodium">
+          <div class="micro-icon">🧂</div>
+          <div class="micro-val"><span id="m-sodium">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Sodium</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-potassium">
+          <div class="micro-icon">🍌</div>
+          <div class="micro-val"><span id="m-potassium">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Potassium</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-calcium">
+          <div class="micro-icon">🦴</div>
+          <div class="micro-val"><span id="m-calcium">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Calcium</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-iron">
+          <div class="micro-icon">🩸</div>
+          <div class="micro-val"><span id="m-iron">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Iron</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-magnesium">
+          <div class="micro-icon">⚡</div>
+          <div class="micro-val"><span id="m-magnesium">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Magnesium</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-zinc">
+          <div class="micro-icon">🛡️</div>
+          <div class="micro-val"><span id="m-zinc">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Zinc</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-vitc">
+          <div class="micro-icon">🍊</div>
+          <div class="micro-val"><span id="m-vitc">0</span><span class="micro-unit">mg</span></div>
+          <div class="micro-lbl">Vitamin C</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-vitd">
+          <div class="micro-icon">☀️</div>
+          <div class="micro-val"><span id="m-vitd">0</span><span class="micro-unit">μg</span></div>
+          <div class="micro-lbl">Vitamin D</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-vitb12">
+          <div class="micro-icon">🔴</div>
+          <div class="micro-val"><span id="m-vitb12">0</span><span class="micro-unit">μg</span></div>
+          <div class="micro-lbl">B12</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="micro-item" id="micro-omega3">
+          <div class="micro-icon">🐟</div>
+          <div class="micro-val"><span id="m-omega3">0</span><span class="micro-unit">g</span></div>
+          <div class="micro-lbl">Omega-3</div>
+          <div class="micro-bar"><div class="micro-bar-fill" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </div><!-- end panel-micros -->
+
+    <!-- Aminos Panel -->
+    <div class="nutrition-panel" id="panel-aminos">
+      <div class="aminos-grid">
+        <div class="amino-item" id="amino-histidine">
+          <div class="amino-icon">🧬</div>
+          <div class="amino-val"><span id="a-histidine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Histidine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-isoleucine">
+          <div class="amino-icon">🔗</div>
+          <div class="amino-val"><span id="a-isoleucine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Isoleucine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-leucine">
+          <div class="amino-icon">💪</div>
+          <div class="amino-val"><span id="a-leucine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Leucine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-lysine">
+          <div class="amino-icon">🦠</div>
+          <div class="amino-val"><span id="a-lysine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Lysine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-methionine">
+          <div class="amino-icon">⚗️</div>
+          <div class="amino-val"><span id="a-methionine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Methionine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-phenylalanine">
+          <div class="amino-icon">🧪</div>
+          <div class="amino-val"><span id="a-phenylalanine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Phenyl.</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-threonine">
+          <div class="amino-icon">🫧</div>
+          <div class="amino-val"><span id="a-threonine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Threonine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-tryptophan">
+          <div class="amino-icon">😴</div>
+          <div class="amino-val"><span id="a-tryptophan">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Tryptophan</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+        <div class="amino-item" id="amino-valine">
+          <div class="amino-icon">🏋️</div>
+          <div class="amino-val"><span id="a-valine">0</span><span class="amino-unit">mg</span></div>
+          <div class="amino-lbl">Valine</div>
+          <div class="amino-bar"><div class="amino-bar-fill" style="width: 0%"></div></div>
+        </div>
+      </div>
+    </div><!-- end panel-aminos -->
+
+    <!-- Meals -->
+    <div class="meals-card">
+      <div class="meals-header">
+        <h3>Today's Meals</h3>
+        <span id="meal-count">0 meals</span>
+      </div>
+      <div class="daily-confidence" id="daily-confidence" style="display:none;">
+        <span>Data confidence:</span>
+        <span class="conf-score" id="daily-conf-score">—</span>
+        <span class="confidence-badge" id="daily-conf-badge"></span>
+      </div>
+      <div id="meals-list">
+        <div class="no-meals">No meals logged yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>⚙️ Settings</h2>
+
+      <div class="settings-section">
+        <div class="settings-section-title">👤 Body</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Weight (kg)</label>
+            <input type="number" id="s-weight" value="70" min="40" max="150">
+          </div>
+          <div class="form-group">
+            <label>Height (cm)</label>
+            <input type="number" id="s-height" value="170" min="140" max="200">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Age</label>
+            <input type="number" id="s-age" value="30" min="18" max="70">
+          </div>
+          <div class="form-group">
+            <label>Sex</label>
+            <select id="s-sex">
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">🏃 Activity & Goals</div>
+        <div class="form-group">
+          <label>Base Activity Level: <span id="activity-label">Sedentary (×1.2)</span></label>
+          <input type="range" id="s-activity-mult" value="1.2" min="1.1" max="1.9" step="0.05">
+          <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">
+            <span>Sedentary</span>
+            <span>Light</span>
+            <span>Moderate</span>
+            <span>Very Active</span>
+            <span>Athlete</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Protein Target: <span id="protein-label">1.6g/kg</span></label>
+          <input type="range" id="s-protein-per-kg" value="1.6" min="1.0" max="2.5" step="0.1">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">🔌 Modes</div>
+        <div class="toggle-row" style="margin-bottom: 10px;">
+          <div>
+            <div class="toggle-label">Cycle through different types of fuel</div>
+            <div class="toggle-sublabel">Alternates feast & fast phases on your schedule</div>
+          </div>
+          <button class="info-btn" onclick="document.getElementById('cycle-info-popup').classList.add('active')">?</button>
+          <label class="toggle-switch">
+            <input type="checkbox" id="s-cycling-enabled" onchange="toggleCycleSettings()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="cycle-settings-body" class="cycle-settings-body collapsed">
+          <div class="form-group">
+            <label>Cycle Start Date</label>
+            <input type="date" id="s-cycle-start">
+          </div>
+          <div class="form-group">
+            <label>Cycle Length (days)</label>
+            <input type="number" id="s-cycle" value="28" min="7" max="60">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Fasting Buffer</label>
+              <input type="number" id="s-buffer-days" value="4" min="0" max="14">
+            </div>
+            <div class="form-group">
+              <label>Fasting Days</label>
+              <input type="number" id="s-fasting-dur" value="2" min="0" max="7">
+            </div>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px;">
+            Fasting starts after buffer days. Keto follows fasting.
+          </div>
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Keto Strictness: <span id="keto-label">Moderate (35g floor)</span></label>
+            <input type="range" id="s-keto" value="50" min="0" max="100" step="5">
+          </div>
+          <div class="form-group">
+            <label>Max Buffer Sugar: <span id="sugar-label">50g</span></label>
+            <input type="range" id="s-max-sugar" value="50" min="20" max="100" step="5">
+            <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">
+              Peak sugar during buffer days. Zero during fasting/keto.
+            </div>
+          </div>
+        </div>
+
+        <!-- Other modes -->
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);">
+          <div class="mode-agent-hint" style="margin-bottom: 10px;">Ask your agent to set up other modes</div>
+
+          <div class="toggle-row mode-placeholder" style="margin-bottom: 10px;">
+            <div>
+              <div class="toggle-label">👟 Connect Steps</div>
+              <div class="toggle-sublabel">Replace activity estimate with real step data</div>
+            </div>
+            <button class="info-btn" onclick="document.getElementById('steps-info-popup').classList.add('active')">?</button>
+            <label class="toggle-switch">
+              <input type="checkbox" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row mode-placeholder" style="margin-bottom: 10px;">
+            <div>
+              <div class="toggle-label">⌚ Wearable Sync</div>
+              <div class="toggle-sublabel">Auto-adjust targets from your fitness tracker</div>
+            </div>
+            <button class="info-btn" onclick="document.getElementById('wearable-info-popup').classList.add('active')">?</button>
+            <label class="toggle-switch">
+              <input type="checkbox" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row mode-placeholder" style="margin-bottom: 10px;">
+            <div>
+              <div class="toggle-label">📈 Glucose Monitor</div>
+              <div class="toggle-sublabel">Adapt carbs based on real-time glucose</div>
+            </div>
+            <button class="info-btn" onclick="document.getElementById('glucose-info-popup').classList.add('active')">?</button>
+            <label class="toggle-switch">
+              <input type="checkbox" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row mode-placeholder" style="margin-bottom: 10px;">
+            <div>
+              <div class="toggle-label">🧪 Ketone Monitor</div>
+              <div class="toggle-sublabel">Track ketosis depth and adjust targets</div>
+            </div>
+            <button class="info-btn" onclick="document.getElementById('ketone-info-popup').classList.add('active')">?</button>
+            <label class="toggle-switch">
+              <input type="checkbox" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row mode-placeholder">
+            <div>
+              <div class="toggle-label">💪 Workout Sync</div>
+              <div class="toggle-sublabel">Different targets for training vs rest days</div>
+            </div>
+            <button class="info-btn" onclick="document.getElementById('workout-info-popup').classList.add('active')">?</button>
+            <label class="toggle-switch">
+              <input type="checkbox" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section" style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2);">
+        <div class="settings-section-title">📊 Calculated Daily Targets</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.8;">
+          <div>BMR (base metabolism): <strong id="calc-bmr" style="color: var(--text);">—</strong> cal</div>
+          <div>× Activity multiplier: <strong id="calc-activity" style="color: var(--text);">—</strong></div>
+          <div style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
+            <span style="font-size: 1rem;">🔥 <strong id="calc-tdee" style="color: var(--accent); font-size: 1.1rem;">—</strong> cal/day</span>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.7rem; color: var(--text-dim);" id="calc-formula">
+            Mifflin-St Jeor formula × activity level
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps Info Popup -->
+  <div class="info-popup" id="steps-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>👟 Connect to Your Steps</h3>
+      <p>The activity slider above is a rough estimate. By connecting your step counter or fitness tracker, FUEL can <strong>replace the estimate with your actual daily movement</strong>.</p>
+      <p>More steps → higher activity multiplier → more calories. Rest days automatically scale back. No more guessing.</p>
+      <p>Works with Garmin, Apple Watch, Fitbit, Oura, Whoop, Samsung, and most fitness trackers.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">Your agent can set this up by connecting to your wearable's API or health data.</p>
+      <button class="info-popup-close" onclick="document.getElementById('steps-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <!-- Fuel Cycling Info Popup -->
+  <div class="info-popup" id="cycle-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>🔄 What is Fuel Cycling?</h3>
+      <p>Your agent combines different types of nutrition in <strong>feast</strong> and <strong>fast</strong> cycles, synced to your weekly, monthly, or any multi-day schedule.</p>
+      <p>Instead of eating the same targets every day, your body cycles through phases that optimise energy, recovery, and metabolic flexibility:</p>
+      <div class="phase-list">
+        <div class="phase-item"><span>🍫</span> Buffer — high carb refeed</div>
+        <div class="phase-item"><span>🌙</span> Pre-Fast — winding down</div>
+        <div class="phase-item"><span>✨</span> Fasting — full reset</div>
+        <div class="phase-item"><span>🥑</span> Keto — fat-adapted</div>
+        <div class="phase-item"><span>🌿</span> Reintro — gentle carbs</div>
+        <div class="phase-item"><span>⚡</span> Refuel — ramping up</div>
+      </div>
+      <p>Each day gets unique macro targets calculated from smooth curves — no two days are exactly the same.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">When off, FUEL tracks simple daily targets based on your TDEE with a balanced macro split.</p>
+      <button class="info-popup-close" onclick="document.getElementById('cycle-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <!-- Wearable Sync Info Popup -->
+  <div class="info-popup" id="wearable-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>⌚ Wearable Sync</h3>
+      <p>Connects to your fitness tracker (Apple Watch, Garmin, Fitbit, etc.) to <strong>automatically adjust your daily calorie and macro targets</strong> based on real activity data.</p>
+      <p>Instead of estimating activity level manually, your actual steps, heart rate, and exercise sessions feed directly into your targets — so hard training days get more fuel and rest days scale back.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">Your agent can configure this with your wearable's API credentials.</p>
+      <button class="info-popup-close" onclick="document.getElementById('wearable-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <!-- Glucose Monitor Info Popup -->
+  <div class="info-popup" id="glucose-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>📈 Glucose Monitor</h3>
+      <p>Integrates with continuous glucose monitors (CGMs) like Libre or Dexcom to <strong>adapt your carb targets based on real-time blood sugar response</strong>.</p>
+      <p>If your glucose spikes after certain meals, the system learns and adjusts your carb ceiling. During stable glucose periods, it may allow more carbs — personalising your nutrition to your metabolism.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">Your agent can connect this to your CGM data source.</p>
+      <button class="info-popup-close" onclick="document.getElementById('glucose-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <!-- Ketone Monitor Info Popup -->
+  <div class="info-popup" id="ketone-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>🧪 Ketone Monitor</h3>
+      <p>Tracks your blood or breath ketone levels to <strong>measure how deeply you're in ketosis</strong> and adjust targets accordingly.</p>
+      <p>During keto phases, it verifies you're actually producing ketones and can tighten or relax carb limits based on your readings. It also helps optimise the transition between keto and carb phases.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">Your agent can set this up with your ketone meter data.</p>
+      <button class="info-popup-close" onclick="document.getElementById('ketone-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <!-- Workout Sync Info Popup -->
+  <div class="info-popup" id="workout-info-popup" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="info-popup-content">
+      <h3>💪 Workout Sync</h3>
+      <p>Automatically detects training vs rest days and <strong>sets different macro targets for each</strong>.</p>
+      <p>Training days get higher carbs and calories to fuel performance and recovery. Rest days shift toward lower carbs and moderate fat. Works alongside cycling mode for even more precise daily targets.</p>
+      <p style="color: var(--text-dim); font-size: 0.75rem;">Your agent can configure this with your training schedule or gym app.</p>
+      <button class="info-popup-close" onclick="document.getElementById('workout-info-popup').classList.remove('active')">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    let date = new Date();
+    let chart = null;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    let cfg = {
+      carbCyclingEnabled: false,
+      cycleStart: today,
+      cycle: 28,
+      bufferDays: 5,
+      fastingDuration: 2,
+      weightKg: 70,
+      heightCm: 170,
+      age: 30,
+      sex: 'female',
+      activityMult: 1.2,
+      trainingCal: 0,
+      ketoStrictness: 50,
+      proteinPerKg: 1.6,
+      maxCheatSugar: 50
+    };
+
+    let selectedMacro = 'carbs'; // 'protein', 'carbs', or 'fat'
+
+    const fmt = d => d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+
+    function cycleDay(d) {
+      if (!cfg.carbCyclingEnabled || !cfg.cycleStart) return null;
+      const diff = Math.floor((d - new Date(cfg.cycleStart)) / 864e5);
+      return ((diff % cfg.cycle) + cfg.cycle) % cfg.cycle + 1;
+    }
+
+    function toggleCycleSettings() {
+      const enabled = document.getElementById('s-cycling-enabled').checked;
+      const body = document.getElementById('cycle-settings-body');
+      if (enabled) {
+        body.classList.remove('collapsed');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        body.classList.add('collapsed');
+      }
+    }
+
+    // Phase boundaries (calculated from config)
+    // Algorithm: buffer (start) → pre-fast → fasting → keto → intro → refuel → buffer (end)
+    // Matches server-side getCycleInfo() exactly
+    function getPhaseMarkers() {
+      const bufferDays = cfg.bufferDays || 0;
+      const fastingDays = cfg.fastingDuration || 0;
+
+      const hasBuffer = bufferDays > 0;
+      const hasFasting = fastingDays > 0;
+      const hasPrefast = hasBuffer && hasFasting;
+
+      const startBufferEnd = Math.floor(bufferDays / 2);
+      const endBufferDays = Math.ceil(bufferDays / 2);
+      // Pre-fast only exists when both buffer AND fasting are enabled
+      const preFastDay = hasPrefast ? bufferDays : startBufferEnd;
+      const fastingStart = preFastDay + 1;
+      const fastingEnd = hasFasting ? preFastDay + fastingDays : preFastDay;
+      const ketoStart = fastingEnd + 1;
+      const ketoEnd = Math.floor(cfg.cycle / 2);
+      const normalStart = ketoEnd + 1;
+      const endBufferStart = hasBuffer ? cfg.cycle - endBufferDays + 1 : cfg.cycle + 1;
+      const introEnd = normalStart + Math.floor((endBufferStart - 1 - normalStart) / 2);
+
+      return { startBufferEnd, endBufferDays, preFastDay, fastingStart, fastingEnd, ketoStart, ketoEnd, normalStart, introEnd, endBufferStart, hasBuffer, hasFasting, hasPrefast };
+    }
+
+    function phase(day) {
+      const m = getPhaseMarkers();
+      if (m.hasBuffer && day >= 1 && day <= m.startBufferEnd) return 'buffer';
+      if (m.hasPrefast && day > m.startBufferEnd && day <= m.preFastDay) return 'prefast';
+      if (m.hasFasting && day >= m.fastingStart && day <= m.fastingEnd) return 'fasting';
+      if (day >= m.ketoStart && day <= m.ketoEnd) return 'keto';
+      if (day >= m.normalStart && day <= m.introEnd) return 'intro';
+      if (m.hasBuffer && day >= m.endBufferStart) return 'buffer';
+      return 'refuel';
+    }
+
+    function phaseInfo(ph) {
+      return {
+        buffer:  { name: 'Buffer',   tag: 'Enjoy & indulge! 🍫', icon: '🍫', emoji: '🍫' },
+        prefast: { name: 'Pre-Fast', tag: 'Ease into fast',       icon: '🌙', emoji: '🌙' },
+        fasting: { name: 'Fasting',  tag: 'Reset & cleanse',      icon: '✨', emoji: '✨' },
+        keto:    { name: 'Keto',     tag: 'Low carb, high fat',   icon: '🥑', emoji: '🥑' },
+        intro:   { name: 'Intro',    tag: 'Gentle carb return',   icon: '🌿', emoji: '🌿' },
+        refuel:  { name: 'Refuel',   tag: 'Building back up',     icon: '⚡', emoji: '⚡' }
+      }[ph] || { name: 'Unknown', tag: '', icon: '❓', emoji: '❓' };
+    }
+
+    // Calculate BMR, TDEE, and target carbs using the algorithm
+    // All target functions removed — chart uses server-computed targets (serverTargets)
+    // kept only for edge cases where serverTargets might not be loaded yet
+    function getMetabolicNeeds() {
+      const bmr = (10 * cfg.weightKg) + (6.25 * cfg.heightCm) - (5 * cfg.age) - 161;
+      const tdee = (bmr * cfg.activityMult);
+      return { bmr, tdee };
+    }
+
+    function render() {
+      const day = cycleDay(date);
+      const cycleCard = document.getElementById('cycle-card');
+      const beads = document.getElementById('beads');
+      const labels = document.getElementById('labels');
+
+      if (!cfg.carbCyclingEnabled || day === null) {
+        // Simple mode — hide cycle UI
+        cycleCard.className = 'cycle-card';
+        document.getElementById('cycle-bg').textContent = '🔥';
+        document.getElementById('phase-name').textContent = 'Simple';
+        document.getElementById('phase-emoji').textContent = '🔥';
+        document.getElementById('phase-tagline').textContent = 'Balanced daily targets';
+        document.getElementById('day-num').textContent = '—';
+        document.getElementById('cycle-len').textContent = '—';
+        beads.innerHTML = '';
+        labels.innerHTML = '';
+      } else {
+        // Cycling mode — full phase display
+        const ph = phase(day);
+        const info = phaseInfo(ph);
+
+        cycleCard.className = `cycle-card ${ph}`;
+        document.getElementById('cycle-bg').textContent = info.icon;
+        document.getElementById('phase-name').textContent = info.name;
+        document.getElementById('phase-emoji').textContent = info.emoji;
+        document.getElementById('phase-tagline').textContent = info.tag;
+        document.getElementById('day-num').textContent = day;
+        document.getElementById('cycle-len').textContent = cfg.cycle;
+
+        // Beads
+        beads.innerHTML = '';
+        labels.innerHTML = '';
+
+        for (let d = 1; d <= cfg.cycle; d++) {
+          const b = document.createElement('div');
+          b.className = `bead ${phase(d)}`;
+          if (d === day) b.classList.add('today');
+          if (d < day) b.classList.add('past');
+          beads.appendChild(b);
+
+          const l = document.createElement('span');
+          if (d === 1 || d === 7 || d === 14 || d === 21 || d === cfg.cycle || d === day) {
+            l.textContent = d;
+            if (d === day) l.classList.add('today');
+          }
+          labels.appendChild(l);
+        }
+      }
+
+      loadData(day);
+    }
+
+    // Store historical data and server targets for chart
+    let historyData = {};
+    let serverTargets = {};
+
+    async function loadHistoryForChart() {
+      try {
+        // Fetch extra days to cover the full cycle regardless of which day we're on
+        const res = await fetch(`/api/week/${fmt(date)}?days=${cfg.cycle * 2}`);
+        const data = await res.json();
+        historyData = {};
+        serverTargets = {};
+        data.forEach(d => {
+          historyData[d.date] = {
+            calories: d.consumed?.calories || 0,
+            protein: d.consumed?.protein_g || 0,
+            fat: d.consumed?.fat_g || 0,
+            carbs: d.consumed?.carbs_g || 0,
+            fiber: d.consumed?.fiber_g || 0,
+            sugar: d.consumed?.sugar_g || 0
+          };
+          if (d.targets) {
+            // Store by cycle day when cycling, by date when simple
+            const key = (d.cycle && d.cycle.cycleDay) ? d.cycle.cycleDay : d.date;
+            serverTargets[key] = {
+              calories: d.targets.calories || 0,
+              protein: d.targets.protein_g || 0,
+              fat: d.targets.fat_g || 0,
+              carbs: d.targets.carbs_g || 0,
+              fiber: d.targets.fiber_g || 0,
+              sugar: d.targets.sugar_g || 0
+            };
+          }
+        });
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
+    }
+
+    function renderChart(today) {
+      const ctx = document.getElementById('chart').getContext('2d');
+      const labs = [], targetValues = [], actualValues = [];
+
+      // Color configs for each macro
+      const macroColors = {
+        calories: { border: 'rgba(239,68,68,0.5)', bg: 'rgba(239,68,68,0.2)', solid: '#ef4444' },
+        protein: { border: 'rgba(99,102,241,0.5)', bg: 'rgba(99,102,241,0.2)', solid: '#6366f1' },
+        carbs: { border: 'rgba(245,158,11,0.5)', bg: 'rgba(245,158,11,0.2)', solid: '#f59e0b' },
+        fat: { border: 'rgba(34,197,94,0.5)', bg: 'rgba(34,197,94,0.2)', solid: '#22c55e' },
+        fiber: { border: 'rgba(168,85,247,0.5)', bg: 'rgba(168,85,247,0.2)', solid: '#a855f7' },
+        sugar: { border: 'rgba(236,72,153,0.5)', bg: 'rgba(236,72,153,0.2)', solid: '#ec4899' }
+      };
+      const colors = macroColors[selectedMacro];
+
+      const isSimple = !cfg.carbCyclingEnabled || today === null;
+      const chartDays = isSimple ? 14 : cfg.cycle;
+
+      if (isSimple) {
+        // Simple mode: show last 14 days by calendar date
+        for (let d = 0; d < chartDays; d++) {
+          const dayDate = new Date(date);
+          dayDate.setDate(dayDate.getDate() - (chartDays - 1 - d));
+          const dateStr = fmt(dayDate);
+          labs.push(dayDate.getDate());
+
+          const st = serverTargets[dateStr];
+          targetValues.push(st ? st[selectedMacro] : 0);
+
+          const dayData = historyData[dateStr];
+          if (dayData && dayData[selectedMacro] !== undefined) {
+            actualValues.push(Math.round(dayData[selectedMacro]) || 0);
+          } else {
+            actualValues.push(null);
+          }
+        }
+      } else {
+        // Cycling mode: show full cycle by cycle day
+        const cycleStart = new Date(date);
+        cycleStart.setDate(cycleStart.getDate() - (today - 1));
+
+        for (let d = 1; d <= chartDays; d++) {
+          labs.push(d);
+          const st = serverTargets[d];
+          targetValues.push(st ? st[selectedMacro] : 0);
+
+          const dayDate = new Date(cycleStart);
+          dayDate.setDate(dayDate.getDate() + (d - 1));
+          const dateStr = dayDate.getFullYear() + '-' +
+            String(dayDate.getMonth() + 1).padStart(2, '0') + '-' +
+            String(dayDate.getDate()).padStart(2, '0');
+          const dayData = historyData[dateStr];
+
+          if (d <= today && dayData && dayData[selectedMacro] !== undefined) {
+            actualValues.push(Math.round(dayData[selectedMacro]) || 0);
+          } else {
+            actualValues.push(null);
+          }
+        }
+      }
+
+      // Calculate dynamic Y-axis max
+      const maxTarget = Math.max(...targetValues);
+      const maxActual = Math.max(...actualValues.filter(v => v !== null), 0);
+      const dataMax = Math.max(maxTarget, maxActual);
+      const rounded = Math.ceil(dataMax / 50) * 50;
+      const yMax = (dataMax % 50 === 0) ? rounded + 50 : rounded;
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labs,
+          datasets: [
+            // Target - dashed line (tension 0 so fasting/keto zeros show exact)
+            {
+              data: targetValues,
+              borderColor: colors.border.replace('0.5', '0.4'),
+              borderDash: [5,5],
+              borderWidth: 2,
+              fill: false,
+              tension: 0,
+              pointRadius: 0
+            },
+            // Actual values - subtle area with thin border
+            {
+              data: actualValues,
+              borderColor: colors.border,
+              backgroundColor: colors.bg,
+              borderWidth: 1.5,
+              fill: 'origin',
+              tension: 0.4,
+              // Show point at current cycle day
+              pointRadius: ctx => ctx.dataIndex === today - 1 ? 6 : 0,
+              pointBackgroundColor: colors.solid,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: { left: 0, right: 0, top: 0, bottom: 0 }
+          },
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: {
+            x: {
+              display: false
+            },
+            y: {
+              position: 'right',
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: {
+                color: '#555',
+                font: { size: 9 },
+                callback: v => selectedMacro === 'calories' ? v : v + 'g',
+                padding: 4
+              },
+              afterFit: (axis) => { axis.width = 40; }, // Fixed width for Y-axis
+              min: 0,
+              max: yMax
+            }
+          }
+        }
+      });
+    }
+
+    function alignBeadsWithChart() {
+      if (!chart) return;
+
+      const beadsContainer = document.getElementById('beads');
+      const labelsContainer = document.getElementById('labels');
+      const beads = beadsContainer.children;
+      const labels = labelsContainer.children;
+
+      // Get chart's plot area
+      const chartArea = chart.chartArea;
+      const xScale = chart.scales.x;
+
+      if (!chartArea || !xScale) return;
+
+      // Set containers to position relative with exact chart width
+      const plotWidth = chartArea.right - chartArea.left;
+      beadsContainer.style.width = plotWidth + 'px';
+      beadsContainer.style.marginLeft = chartArea.left + 'px';
+      beadsContainer.style.marginRight = 'auto';
+      labelsContainer.style.width = plotWidth + 'px';
+      labelsContainer.style.marginLeft = chartArea.left + 'px';
+      labelsContainer.style.marginRight = 'auto';
+    }
+
+    async function loadData(cycleDay) {
+      try {
+        // Load history for chart first
+        await loadHistoryForChart();
+
+        // Now render chart with loaded data
+        renderChart(cycleDay);
+
+        // Then align beads after a short delay to ensure chart is fully rendered
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            alignBeadsWithChart();
+          });
+        });
+
+        const res = await fetch(`/api/daily/${fmt(date)}`);
+        const data = await res.json();
+        const t = data.consumed || data.totals || {};
+        const day = cycleDay;
+        
+        // Override phase display with server phase (single source of truth)
+        if (data.cycle && data.cycle.phase !== 'off') {
+          const serverPhaseMap = {
+            'buffer':  { name: 'Buffer',   tag: 'Enjoy & indulge! 🍫', emoji: '🍫' },
+            'prefast': { name: 'Pre-Fast', tag: 'Ease into fast',      emoji: '🌙' },
+            'fasting': { name: 'Fasting',  tag: 'Reset & cleanse',     emoji: '✨' },
+            'keto':    { name: 'Keto',     tag: 'Low carb, high fat',  emoji: '🥑' },
+            'intro':   { name: 'Intro',    tag: 'Gentle carb return',  emoji: '🌿' },
+            'refuel':  { name: 'Refuel',   tag: 'Building back up',    emoji: '⚡' }
+          };
+          const sp = serverPhaseMap[data.cycle.phase] || {};
+          if (sp.name) {
+            document.getElementById('phase-name').textContent = sp.name;
+            document.getElementById('phase-emoji').textContent = sp.emoji;
+            document.getElementById('phase-tagline').textContent = sp.tag;
+          }
+        }
+
+        // Use server-computed targets (single source of truth)
+        const targets = data.targets || {};
+
+        // Update macro values and rings (6 macros now)
+        updateMacroRing('calories', t.calories || 0, targets.calories || 0);
+        updateMacroRing('protein', t.protein_g || 0, targets.protein_g || 0);
+        updateMacroRing('fat', t.fat_g || 0, targets.fat_g || 0);
+        updateMacroRing('carbs', t.carbs_g || 0, targets.carbs_g || 0);
+        updateMacroRing('fiber', t.fiber_g || 0, targets.fiber_g || 0);
+        updateMacroRing('sugar', t.sugar_g || 0, targets.sugar_g || 0);
+
+        // Update micros
+        updateMicros(t);
+        updateAminos(t);
+
+        renderDailyConfidence(data.dailyConfidence);
+        renderMeals(data.meals || []);
+      } catch(e) { console.error(e); }
+    }
+
+    function updateMacroRing(name, value, target) {
+      const circumference = 138.2; // 2 * PI * 22
+      const radius = 22;
+      const center = 26;
+      const pct = target > 0 ? value / target : 0;
+      const completeCycles = Math.floor(pct);
+      const partialPct = pct - completeCycles;
+      
+      document.getElementById(`m-${name}`).textContent = Math.round(value);
+      document.getElementById(`t-${name}`).textContent = target > 0 ? `/ ${Math.round(target)}` : '';
+
+      const ring = document.getElementById(`ring-${name}`);
+      const overflow = document.getElementById(`overflow-${name}`);
+      const cap = document.getElementById(`cap-${name}`);
+      const cycleIndicator = document.getElementById(`cycle-${name}`);
+      
+      if (pct > 1) {
+        // Over 100%: main ring full, overflow shows the extra portion
+        ring.style.strokeDashoffset = 0; // Full circle
+        ring.classList.add('over');
+        
+        // Overflow circle shows the partial progress into the next cycle
+        const overflowOffset = circumference * (1 - partialPct);
+        overflow.style.strokeDashoffset = overflowOffset;
+        overflow.style.display = 'block';
+        
+        // Position the end cap at the end of the overflow arc
+        // SVG is rotated -90deg, so we calculate in pre-rotation coords
+        // Angle starts at 3 o'clock (pre-rotation) = 12 o'clock (visual), going clockwise
+        const angle = partialPct * 2 * Math.PI;
+        const capX = center + radius * Math.cos(angle);
+        const capY = center + radius * Math.sin(angle);
+        cap.setAttribute('cx', capX);
+        cap.setAttribute('cy', capY);
+        cap.style.display = 'block';
+        
+        // Show cycle indicator
+        if (completeCycles >= 1) {
+          cycleIndicator.textContent = completeCycles >= 3 ? `${completeCycles}×` : '»'.repeat(completeCycles);
+        } else {
+          cycleIndicator.textContent = '';
+        }
+      } else {
+        // Under 100%: normal progress, no overflow
+        const offset = circumference * (1 - pct);
+        ring.style.strokeDashoffset = offset;
+        ring.classList.remove('over');
+        
+        // Hide overflow and cap
+        overflow.style.strokeDashoffset = circumference;
+        overflow.style.display = 'none';
+        cap.style.display = 'none';
+        cycleIndicator.textContent = '';
+      }
+    }
+
+    function confClass(val) {
+      if (val == null) return 'conf-mid';
+      if (val >= 0.8) return 'conf-high';
+      if (val >= 0.5) return 'conf-mid';
+      return 'conf-low';
+    }
+
+    function confLabel(val) {
+      if (val == null) return '?';
+      return Math.round(val * 100) + '%';
+    }
+
+    function renderDailyConfidence(dailyConfidence) {
+      const el = document.getElementById('daily-confidence');
+      if (dailyConfidence == null) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'flex';
+      const cls = confClass(dailyConfidence);
+      document.getElementById('daily-conf-score').textContent = confLabel(dailyConfidence);
+      document.getElementById('daily-conf-score').className = 'conf-score';
+      document.getElementById('daily-conf-score').style.color =
+        cls === 'conf-high' ? '#4ade80' : cls === 'conf-mid' ? '#fbbf24' : '#f87171';
+      const badge = document.getElementById('daily-conf-badge');
+      badge.className = `confidence-badge ${cls}`;
+      badge.innerHTML = `<span class="conf-dot"></span>${cls === 'conf-high' ? 'High' : cls === 'conf-mid' ? 'Medium' : 'Low'}`;
+    }
+
+    function renderMeals(meals) {
+      document.getElementById('meal-count').textContent = `${meals.length} meal${meals.length!==1?'s':''}`;
+      const list = document.getElementById('meals-list');
+
+      if (!meals.length) {
+        const isToday = fmt(date) === fmt(new Date());
+        list.innerHTML = isToday
+          ? '<div class="no-meals">Ask your agent to log what you ate today.</div>'
+          : '<div class="no-meals">No meals logged</div>';
+        return;
+      }
+
+      list.innerHTML = meals.map((m, idx) => {
+        const time = m.meal_time ? new Date(m.meal_time).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:true}) : '';
+        // Check if this is a composite meal (historical import)
+        const isComposite = (m.items||[]).some(i => (i.food_name||i.name||'').includes('(composite)'));
+        let items;
+        if (isComposite && m.notes) {
+          // Extract ingredients from notes (skip "Recorded:" line)
+          const lines = m.notes.split('\n').filter(l => l.trim() && !l.startsWith('Recorded:'));
+          items = lines.slice(0, 5).map(l => l.replace(/^[---]\s*/, '').replace(/\s*[---]\s*[\d~≈].*$/, '').trim()).filter(l => l).join(', ');
+          if (lines.length > 5) items += '...';
+        } else {
+          items = (m.items||[]).map(i=>i.food_name||i.name).join(', ') || m.notes || '';
+        }
+
+        const mealConf = m.confidence_pct;
+        const cls = confClass(mealConf);
+        const badgeHtml = `<span class="confidence-badge ${cls}" onclick="toggleConfDetail(${idx})" title="Data confidence: ${confLabel(mealConf)}"><span class="conf-dot"></span>${confLabel(mealConf)}</span>`;
+
+        // Build per-item confidence detail
+        let detailHtml = '';
+        if ((m.items||[]).length > 0) {
+          const sortedItems = [...(m.items||[])].sort((a,b) => (a.confidence_pct ?? 0.5) - (b.confidence_pct ?? 0.5));
+          detailHtml = `<div class="conf-detail" id="conf-detail-${idx}">
+            ${sortedItems.map(i => {
+              const ic = confClass(i.confidence_pct ?? 0.5);
+              return `<div class="conf-detail-item ${ic === 'conf-low' ? 'conf-item-low' : ic === 'conf-mid' ? 'conf-item-mid' : 'conf-item-high'}">
+                <span class="conf-item-name">${i.food_name||i.name||'?'}</span>
+                <span class="conf-item-val">${confLabel(i.confidence_pct ?? 0.5)}</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        }
+
+        return `<div class="meal">
+          <div class="meal-top">
+            <span class="meal-type">${m.meal_type}${badgeHtml}</span>
+            <span class="meal-time">${time}</span>
+          </div>
+          ${m.title ? `<div class="meal-title">${m.title}</div>` : ''}
+          <div class="meal-items">${items}</div>
+          <div class="meal-macros">
+            <span class="m-cal">${Math.round(m.totals?.calories||m.calories||0)} cal</span>
+            <span class="m-protein">${Math.round(m.totals?.protein_g||m.protein_g||0)}g P</span>
+            <span class="m-fat">${Math.round(m.totals?.fat_g||m.fat_g||0)}g F</span>
+            <span class="m-carbs">${Math.round(m.totals?.carbs_g||m.carbs_g||0)}g C</span>
+            <span class="m-fiber">${Math.round(m.totals?.fiber_g||m.fiber_g||0)}g fiber</span>
+            <span class="m-sugar">${Math.round(m.totals?.sugar_g||m.sugar_g||0)}g sugar</span>
+          </div>
+          ${detailHtml}
+        </div>`;
+      }).join('');
+    }
+
+    function toggleConfDetail(idx) {
+      const el = document.getElementById(`conf-detail-${idx}`);
+      if (el) el.classList.toggle('visible');
+    }
+
+    // Events
+    document.getElementById('date-picker').value = fmt(date);
+    document.getElementById('date-picker').onchange = e => { date = new Date(e.target.value+'T12:00'); render(); };
+    document.getElementById('prev-day').onclick = () => { date.setDate(date.getDate()-1); document.getElementById('date-picker').value = fmt(date); render(); };
+    document.getElementById('next-day').onclick = () => { date.setDate(date.getDate()+1); document.getElementById('date-picker').value = fmt(date); render(); };
+
+    const modal = document.getElementById('modal');
+    const ketoSlider = document.getElementById('s-keto');
+    const ketoLabel = document.getElementById('keto-label');
+
+    function updateKetoLabel(val) {
+      const floor = Math.round(20 + (val / 100) * 30);
+      let label = 'Moderate';
+      if (val < 25) label = 'Very Strict';
+      else if (val < 50) label = 'Strict';
+      else if (val < 75) label = 'Moderate';
+      else label = 'Relaxed';
+      ketoLabel.textContent = `${label} (${floor}g floor)`;
+    }
+
+    ketoSlider.oninput = () => updateKetoLabel(ketoSlider.value);
+
+    // Update calculated calorie display in settings
+    function updateCalorieCalcs() {
+      const weight = parseFloat(document.getElementById('s-weight').value) || 60;
+      const height = parseFloat(document.getElementById('s-height').value) || 165;
+      const age = parseFloat(document.getElementById('s-age').value) || 30;
+      const sex = document.getElementById('s-sex').value;
+      const activityMult = parseFloat(document.getElementById('s-activity-mult').value) || 1.2;
+      
+      const bmrOffset = sex === 'male' ? 5 : -161;
+      const bmr = Math.round((10 * weight) + (6.25 * height) - (5 * age) + bmrOffset);
+      const tdee = Math.round(bmr * activityMult);
+      
+      document.getElementById('calc-bmr').textContent = bmr.toLocaleString();
+      document.getElementById('calc-activity').textContent = '×' + activityMult;
+      document.getElementById('calc-tdee').textContent = tdee.toLocaleString();
+      document.getElementById('calc-formula').textContent = 'Mifflin-St Jeor (10×kg + 6.25×cm − 5×age ' + (sex === 'male' ? '+ 5' : '− 161') + ') × activity';
+    }
+
+    // Activity level label update
+    function updateActivityLabel(val) {
+      const v = parseFloat(val);
+      let label = 'Sedentary';
+      if (v >= 1.8) label = 'Athlete';
+      else if (v >= 1.6) label = 'Very Active';
+      else if (v >= 1.4) label = 'Moderate';
+      else if (v >= 1.25) label = 'Light';
+      document.getElementById('activity-label').textContent = `${label} (×${v.toFixed(2)})`;
+      updateCalorieCalcs();
+    }
+
+    // Update calcs when inputs change
+    ['s-weight', 's-height', 's-age'].forEach(id => {
+      document.getElementById(id).oninput = updateCalorieCalcs;
+    });
+    document.getElementById('s-sex').onchange = updateCalorieCalcs;
+    document.getElementById('s-activity-mult').oninput = function() { updateActivityLabel(this.value); updateCalorieCalcs(); };
+
+    document.getElementById('settings-btn').onclick = () => {
+      document.getElementById('s-cycling-enabled').checked = cfg.carbCyclingEnabled;
+      toggleCycleSettings();
+      document.getElementById('s-cycle-start').value = cfg.cycleStart;
+      document.getElementById('s-cycle').value = cfg.cycle;
+      document.getElementById('s-buffer-days').value = cfg.bufferDays;
+      document.getElementById('s-fasting-dur').value = cfg.fastingDuration;
+      document.getElementById('s-weight').value = cfg.weightKg;
+      document.getElementById('s-height').value = cfg.heightCm;
+      document.getElementById('s-age').value = cfg.age;
+      document.getElementById('s-sex').value = cfg.sex;
+      document.getElementById('s-activity-mult').value = cfg.activityMult;
+      updateActivityLabel(cfg.activityMult);
+      document.getElementById('s-protein-per-kg').value = cfg.proteinPerKg;
+      document.getElementById('protein-label').textContent = cfg.proteinPerKg + 'g/kg';
+      document.getElementById('s-keto').value = cfg.ketoStrictness;
+      updateKetoLabel(cfg.ketoStrictness);
+      document.getElementById('s-max-sugar').value = cfg.maxCheatSugar;
+      document.getElementById('sugar-label').textContent = cfg.maxCheatSugar + 'g';
+      updateCalorieCalcs();  // Show calculated values
+      modal.classList.add('active');
+    };
+
+    document.getElementById('cancel-btn').onclick = () => modal.classList.remove('active');
+
+    document.getElementById('save-btn').onclick = async () => {
+      cfg.carbCyclingEnabled = document.getElementById('s-cycling-enabled').checked;
+      cfg.cycleStart = document.getElementById('s-cycle-start').value;
+      cfg.cycle = +document.getElementById('s-cycle').value;
+      cfg.bufferDays = +document.getElementById('s-buffer-days').value;
+      cfg.fastingDuration = +document.getElementById('s-fasting-dur').value;
+      cfg.weightKg = +document.getElementById('s-weight').value;
+      cfg.heightCm = +document.getElementById('s-height').value;
+      cfg.age = +document.getElementById('s-age').value;
+      cfg.sex = document.getElementById('s-sex').value;
+      cfg.activityMult = +document.getElementById('s-activity-mult').value;
+      
+      // Update micro RDIs based on new sex/age
+      microRDI = getMicroRDI(cfg.sex, cfg.age);
+      cfg.proteinPerKg = +document.getElementById('s-protein-per-kg').value;
+      cfg.ketoStrictness = +document.getElementById('s-keto').value;
+      cfg.maxCheatSugar = +document.getElementById('s-max-sugar').value;
+      
+      // Save to server (persistent) AND localStorage (cache)
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weight_kg: cfg.weightKg,
+            height_cm: cfg.heightCm,
+            age: cfg.age,
+            sex: cfg.sex,
+            carb_cycling_enabled: cfg.carbCyclingEnabled,
+            cycle_start_date: cfg.cycleStart,
+            cycle_length: cfg.cycle,
+            buffer_days: cfg.bufferDays,
+            fasting_duration: cfg.fastingDuration,
+            activity_mult: cfg.activityMult,
+            training_cal: 0,
+            keto_strictness: cfg.ketoStrictness,
+            protein_per_kg: cfg.proteinPerKg,
+            max_cheat_sugar: cfg.maxCheatSugar,
+            activity_level: 'moderate',
+            goal: 'maintenance'
+          })
+        });
+        console.log('✅ Settings saved to server');
+      } catch (e) {
+        console.error('Failed to save to server:', e);
+      }
+      localStorage.setItem('fuel-cfg', JSON.stringify(cfg));
+      modal.classList.remove('active');
+      render();
+    };
+
+    modal.onclick = e => { if(e.target===modal) modal.classList.remove('active'); };
+
+    // Macro circles toggle chart on tap
+    document.querySelectorAll('.macro[data-macro]').forEach(macro => {
+      macro.onclick = () => {
+        document.querySelectorAll('.macro').forEach(m => m.classList.remove('selected'));
+        macro.classList.add('selected');
+        selectedMacro = macro.dataset.macro;
+        const day = cycleDay(date);
+        renderChart(day);
+        alignBeadsWithChart();
+      };
+    });
+
+    // Protein per kg slider label update
+    document.getElementById('s-protein-per-kg').oninput = function() {
+      document.getElementById('protein-label').textContent = this.value + 'g/kg';
+    };
+
+    // Max sugar slider label update
+    document.getElementById('s-max-sugar').oninput = function() {
+      document.getElementById('sugar-label').textContent = this.value + 'g';
+    };
+
+    // Init - load from server first, fallback to localStorage
+    async function initSettings() {
+      let hasSettings = false;
+
+      try {
+        const res = await fetch('/api/settings');
+        const serverCfg = await res.json();
+        if (serverCfg && serverCfg.weight_kg) {
+          cfg.weightKg = serverCfg.weight_kg;
+          cfg.heightCm = serverCfg.height_cm;
+          cfg.age = serverCfg.age;
+          cfg.sex = serverCfg.sex || 'female';
+          cfg.carbCyclingEnabled = !!serverCfg.carb_cycling_enabled;
+          cfg.cycleStart = serverCfg.cycle_start_date || today;
+          cfg.cycle = serverCfg.cycle_length || 28;
+          cfg.bufferDays = serverCfg.buffer_days ?? 5;
+          cfg.fastingDuration = serverCfg.fasting_duration ?? 2;
+          cfg.activityMult = serverCfg.activity_mult || 1.2;
+          cfg.trainingCal = 0;
+          cfg.ketoStrictness = serverCfg.keto_strictness ?? 50;
+          cfg.proteinPerKg = serverCfg.protein_per_kg || 1.6;
+          cfg.maxCheatSugar = serverCfg.max_cheat_sugar || 50;
+
+          // Update micro RDIs based on user profile
+          microRDI = getMicroRDI(cfg.sex, cfg.age);
+          console.log('✅ Settings loaded from server, RDIs:', microRDI);
+          hasSettings = true;
+        }
+      } catch (e) {
+        console.log('Using localStorage fallback');
+        const saved = localStorage.getItem('fuel-cfg');
+        if (saved) try {
+          cfg = {...cfg, ...JSON.parse(saved)};
+          hasSettings = cfg.weightKg > 0;
+        } catch(e) {}
+      }
+
+      render();
+    }
+
+    // ========== MICRONUTRIENTS ==========
+    // NIH RDAs by sex and age bracket
+    // Source: https://ods.od.nih.gov and https://www.ncbi.nlm.nih.gov/books/NBK222881/
+    function getMicroRDI(sex, age) {
+      const isMale = sex === 'male';
+      const over50 = age >= 51;
+      
+      return {
+        sodium_mg: 2300,  // Upper limit (same for all)
+        potassium_mg: isMale ? 3400 : 2600,
+        calcium_mg: over50 ? 1200 : 1000,
+        iron_mg: isMale ? 8 : (over50 ? 8 : 18),  // Females 19-50 need 18mg
+        magnesium_mg: isMale ? (over50 ? 420 : 400) : (over50 ? 320 : 310),
+        zinc_mg: isMale ? 11 : 8,
+        vitamin_c_mg: isMale ? 90 : 75,
+        vitamin_d_mcg: over50 ? 20 : 15,
+        vitamin_b12_mcg: 2.4,  // Same for all adults
+        omega_3_g: isMale ? 1.6 : 1.1  // ALA recommendation
+      };
+    }
+    
+    // Current RDIs (updated when settings load)
+    let microRDI = getMicroRDI('female', 30);
+
+    function updateMicros(t) {
+      const micros = [
+        { id: 'sodium', key: 'sodium_mg', rdi: microRDI.sodium_mg, invert: true },
+        { id: 'potassium', key: 'potassium_mg', rdi: microRDI.potassium_mg },
+        { id: 'calcium', key: 'calcium_mg', rdi: microRDI.calcium_mg },
+        { id: 'iron', key: 'iron_mg', rdi: microRDI.iron_mg },
+        { id: 'magnesium', key: 'magnesium_mg', rdi: microRDI.magnesium_mg },
+        { id: 'zinc', key: 'zinc_mg', rdi: microRDI.zinc_mg },
+        { id: 'vitc', key: 'vitamin_c_mg', rdi: microRDI.vitamin_c_mg },
+        { id: 'vitd', key: 'vitamin_d_mcg', rdi: microRDI.vitamin_d_mcg },
+        { id: 'vitb12', key: 'vitamin_b12_mcg', rdi: microRDI.vitamin_b12_mcg },
+        { id: 'omega3', key: 'omega_3_g', rdi: microRDI.omega_3_g }
+      ];
+
+      micros.forEach(m => {
+        const val = t[m.key] || 0;
+        const pct = Math.min((val / m.rdi) * 100, 150);
+        const el = document.getElementById(`micro-${m.id}`);
+        const valEl = document.getElementById(`m-${m.id}`);
+        const barFill = el?.querySelector('.micro-bar-fill');
+
+        if (valEl) {
+          // Format value nicely
+          if (val >= 1000) {
+            valEl.textContent = (val/1000).toFixed(1) + 'k';
+          } else if (val >= 100) {
+            valEl.textContent = Math.round(val);
+          } else if (val >= 10) {
+            valEl.textContent = val.toFixed(1);
+          } else {
+            valEl.textContent = val.toFixed(2);
+          }
+        }
+
+        if (barFill) {
+          barFill.style.width = Math.min(pct, 100) + '%';
+        }
+
+        if (el) {
+          el.classList.remove('good', 'warning', 'low');
+          if (m.invert) {
+            // Sodium: lower is better
+            if (pct > 100) el.classList.add('warning');
+            else if (pct > 70) el.classList.add('good');
+            else el.classList.add('good');
+          } else {
+            if (pct >= 80) el.classList.add('good');
+            else if (pct >= 50) el.classList.add('warning');
+            else el.classList.add('low');
+          }
+        }
+      });
+    }
+
+    // ========== AMINO ACIDS ==========
+    // WHO/FAO recommended daily intake per kg body weight (mg/kg/day)
+    const AMINO_RDI_PER_KG = {
+      histidine_g: 14,
+      isoleucine_g: 19,
+      leucine_g: 42,
+      lysine_g: 38,
+      methionine_g: 19,
+      phenylalanine_g: 33,
+      threonine_g: 20,
+      tryptophan_g: 5,
+      valine_g: 24
+    };
+
+    function getAminoRDI(weightKg) {
+      const rdi = {};
+      for (const [key, perKg] of Object.entries(AMINO_RDI_PER_KG)) {
+        rdi[key] = perKg * weightKg; // mg/day
+      }
+      return rdi;
+    }
+
+    function updateAminos(t) {
+      const rdi = getAminoRDI(cfg.weightKg || 70);
+      const aminos = [
+        { id: 'histidine', key: 'histidine_g' },
+        { id: 'isoleucine', key: 'isoleucine_g' },
+        { id: 'leucine', key: 'leucine_g' },
+        { id: 'lysine', key: 'lysine_g' },
+        { id: 'methionine', key: 'methionine_g' },
+        { id: 'phenylalanine', key: 'phenylalanine_g' },
+        { id: 'threonine', key: 'threonine_g' },
+        { id: 'tryptophan', key: 'tryptophan_g' },
+        { id: 'valine', key: 'valine_g' }
+      ];
+
+      aminos.forEach(a => {
+        const valG = t[a.key] || 0;
+        const valMg = valG * 1000; // convert g to mg
+        const target = rdi[a.key];
+        const pct = target > 0 ? (valMg / target) * 100 : 0;
+        const el = document.getElementById(`amino-${a.id}`);
+        const valEl = document.getElementById(`a-${a.id}`);
+        const barFill = el?.querySelector('.amino-bar-fill');
+
+        if (valEl) {
+          if (valMg >= 1000) {
+            valEl.textContent = (valMg / 1000).toFixed(1) + 'k';
+          } else if (valMg >= 100) {
+            valEl.textContent = Math.round(valMg);
+          } else if (valMg >= 10) {
+            valEl.textContent = valMg.toFixed(1);
+          } else {
+            valEl.textContent = valMg.toFixed(0);
+          }
+        }
+
+        if (barFill) {
+          barFill.style.width = Math.min(pct, 100) + '%';
+        }
+
+        if (el) {
+          el.classList.remove('good', 'warning', 'low');
+          if (pct >= 80) el.classList.add('good');
+          else if (pct >= 50) el.classList.add('warning');
+          else el.classList.add('low');
+        }
+      });
+    }
+
+    // ========== NUTRITION TABS ==========
+    document.querySelectorAll('.nutrition-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nutrition-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nutrition-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`panel-${tab.dataset.panel}`).classList.add('active');
+      });
+    });
+
+    initSettings();
+  </script>
+</body>
+</html>

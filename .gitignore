@@ -1,0 +1,60 @@
+# Database files (contain personal data)
+*.db
+*.db-journal
+*.db.backup*
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# Logs and temp files
+*.log
+cleanup_log*.json
+
+# Data folder (validation reports, logs)
+data/
+
+# Uploads (user photos)
+uploads/
+
+# Meal photos (personal data)
+photos/
+
+# Agent state files (contain user-specific state)
+*-state.json
+
+# One-time import/fix scripts (keep locally, not for sharing)
+fix_csv_import*.py
+import_csv_history.py
+cleanup_meals.js
+fix_historical_macros.js
+import_historical.js
+validate_historical.js
+ricky.js
+AUDIT_REPORT.md
+
+# Backup HTML files
+*-backup.html
+
+# Backups
+*.backup
+*.old_schema_backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Gas Town (added by gt)
+.runtime/
+.claude/
+.beads/
+.logs/

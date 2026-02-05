@@ -1,0 +1,21 @@
+{
+  "name": "fuel",
+  "version": "1.0.0",
+  "description": "Comprehensive meal logging and nutrition tracking system",
+  "scripts": {
+    "start": "node web/server.js",
+    "dev": "node web/server.js",
+    "seed": "python3 seed_foods.py",
+    "test": "jest --forceExit --detectOpenHandles"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
